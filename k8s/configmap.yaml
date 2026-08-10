@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mini-dropbox-config
+  namespace: mini-dropbox
+data:
+  GRPC_PORT: "50051"
+  DATA_DIR: "/data"
+  PORT: "8080"
+  BACKEND_ADDR: "mini-dropbox-backend:50051"
+  AWS_REGION: "us-east-1"
+  # Leave empty to run with the two local (PVC-backed) replicas only.
+  # Set to enable the S3 replica leg described in aws/main.tf.
+  S3_BUCKET: ""

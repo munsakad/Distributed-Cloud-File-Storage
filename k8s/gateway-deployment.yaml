@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-dropbox-gateway
+  namespace: mini-dropbox
+  labels:
+    app: mini-dropbox-gateway
+spec:
+  replicas: 2 # stateless REST/gRPC bridge - safe to scale horizontally
+  selector:
+    matchLabels:
+      app: mini-dropbox-gateway
+  template:
+    metadata:
+      labels:
+        app: mini-dropbox-gateway
+    spec:
+      containers:
+        - name: gateway
+          # Built with Cloud Native Buildpacks (pack build), not a Dockerfile —
+          # see scripts/build-gateway.sh.
+          image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mini-dropbox-gateway:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: mini-dropbox-config
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

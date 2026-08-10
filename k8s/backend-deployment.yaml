@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mini-dropbox-backend
+  namespace: mini-dropbox
+  labels:
+    app: mini-dropbox-backend
+spec:
+  replicas: 1 # metadata store is a single JSON file on the PVC — see README before scaling this
+  selector:
+    matchLabels:
+      app: mini-dropbox-backend
+  template:
+    metadata:
+      labels:
+        app: mini-dropbox-backend
+    spec:
+      containers:
+        - name: backend
+          # Built with Cloud Native Buildpacks (pack build), not a Dockerfile —
+          # see scripts/build-backend.sh. Push this image to ECR and update
+          # the tag below before applying.
+          image: <ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/mini-dropbox-backend:latest
+          ports:
+            - containerPort: 50051
+              name: grpc
+          envFrom:
+            - configMapRef:
+                name: mini-dropbox-config
+            - secretRef:
+                name: mini-dropbox-secrets
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 50051
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: mini-dropbox-backend-data

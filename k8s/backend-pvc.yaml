@@ -1,0 +1,23 @@
+# A single PVC mounted at /data, holding replica-a/ and replica-b/ as
+# subdirectories. This is a demo simplification — it proves out the
+# chunking/encryption/versioning/replication *code path*, but both
+# "replicas" share one underlying volume/zone.
+#
+# For real fault-tolerant replication, run the backend as a StatefulSet
+# with one PVC per pod (ideally in different AZs via topology spread
+# constraints / storage classes), and change ReplicationManager in
+# backend/src/services/replication to write to each pod's gRPC endpoint
+# instead of a local directory — the ReplicaTarget interface already
+# supports swapping in a remote implementation without touching FileService.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mini-dropbox-backend-data
+  namespace: mini-dropbox
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  # storageClassName: gp3   # set to your cluster's storage class (e.g. EKS default gp3)

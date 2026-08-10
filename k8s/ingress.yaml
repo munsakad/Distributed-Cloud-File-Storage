@@ -1,0 +1,25 @@
+# Optional: use this instead of (or in front of) the LoadBalancer Service.
+# Requires an ingress controller (e.g. ingress-nginx or AWS Load Balancer
+# Controller) already installed on the cluster. Change gateway-service.yaml's
+# type to ClusterIP if you use this.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mini-dropbox
+  namespace: mini-dropbox
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  rules:
+    - host: mini-dropbox.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: mini-dropbox-gateway
+                port:
+                  number: 80
