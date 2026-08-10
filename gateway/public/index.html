@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mini-dropbox — object store</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="scanline" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="wordmark">
+      <span class="wordmark__bracket">[</span>mini-dropbox<span class="wordmark__cursor">_</span><span class="wordmark__bracket">]</span>
+    </div>
+    <div class="status" id="status">
+      <span class="status__dot" id="statusDot"></span>
+      <span id="statusText">connecting…</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel intake" id="intake">
+      <div class="panel__eyebrow">01 — INTAKE</div>
+      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload a file">
+        <div class="dropzone__glyph">▲</div>
+        <p class="dropzone__title">Drop a file, or click to choose one</p>
+        <p class="dropzone__sub">Every file is split into 1&nbsp;MiB chunks, encrypted with AES‑256‑GCM per chunk, and fanned out to <strong>replica&#8209;a</strong>, <strong>replica&#8209;b</strong><span id="s3Note"></span> before the write is acknowledged.</p>
+        <input type="file" id="fileInput" hidden />
+      </div>
+      <div class="progress" id="progressWrap" hidden>
+        <div class="progress__label">
+          <span id="progressName"></span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress__track"><div class="progress__fill" id="progressFill"></div></div>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+    </section>
+
+    <section class="panel objects">
+      <div class="panel__eyebrow">02 — OBJECTS <span id="fileCount" class="panel__count"></span></div>
+      <div class="table" id="table">
+        <div class="table__empty" id="emptyState">No objects yet — upload something above.</div>
+      </div>
+    </section>
+  </main>
+
+  <template id="rowTemplate">
+    <article class="object" data-file-id="">
+      <div class="object__row">
+        <button class="object__toggle" aria-expanded="false">▸</button>
+        <div class="object__name"></div>
+        <div class="object__meta">
+          <span class="badge badge--version"></span>
+          <span class="object__size"></span>
+          <span class="object__updated"></span>
+        </div>
+        <div class="object__actions">
+          <button class="btn btn--ghost btn--new-version">new version</button>
+          <input type="file" class="object__version-input" hidden />
+          <button class="btn btn--ghost btn--download">download</button>
+          <button class="btn btn--danger btn--delete">delete</button>
+        </div>
+      </div>
+      <div class="object__id"></div>
+      <div class="object__detail" hidden>
+        <div class="detail__loading">loading versions…</div>
+      </div>
+    </article>
+  </template>
+
+  <template id="versionRowTemplate">
+    <div class="version">
+      <div class="version__head">
+        <span class="badge badge--version"></span>
+        <span class="version__checksum"></span>
+        <span class="version__size"></span>
+        <span class="version__date"></span>
+      </div>
+      <div class="version__ledger" title="one square = one encrypted chunk"></div>
+      <div class="version__actions">
+        <button class="btn btn--ghost btn--sm btn--download-version">download this version</button>
+        <button class="btn btn--accent btn--sm btn--rollback">make current</button>
+      </div>
+    </div>
+  </template>
+
+  <script src="app.js"></script>
+</body>
+</html>
