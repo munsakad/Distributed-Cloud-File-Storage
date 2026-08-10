@@ -1,0 +1,11 @@
+node_modules/
+dist/
+data/
+*.env
+!.env.example
+.DS_Store
+k8s/secret.yaml
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
