@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package filestorage;
+
+// Core service backing the storage node. The gateway (REST API) is a thin
+// client of this service. Talking to it directly (grpcurl, another backend,
+// a mobile client, etc.) works exactly the same way.
+service FileStorageService {
+  // Client-streaming: first message is UploadMetadata, all subsequent
+  // messages carry raw bytes that the server chunks, encrypts, and
+  // replicates as they arrive.
+  rpc UploadFile(stream UploadChunk) returns (UploadResponse);
+
+  // Server-streaming: server reassembles + decrypts chunks in order and
+  // streams the plaintext file back.
+  rpc DownloadFile(DownloadRequest) returns (stream DownloadChunk);
+
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc ListVersions(ListVersionsRequest) returns (ListVersionsResponse);
+  rpc Rollback(RollbackRequest) returns (RollbackResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+message UploadChunk {
+  oneof payload {
+    UploadMetadata metadata = 1; // must be the first message on the stream
+    bytes content = 2;           // raw file bytes, any size per message
+  }
+}
+
+message UploadMetadata {
+  string filename = 1;
+  string owner = 2;
+  // Omit to create a new file. Provide an existing file_id to upload a new
+  // VERSION of that file (version control).
+  string file_id = 3;
+}
+
+message UploadResponse {
+  string file_id = 1;
+  int32 version = 2;
+  string checksum = 3;
+  int64 size = 4;
+}
+
+message DownloadRequest {
+  string file_id = 1;
+  int32 version = 2; // 0 = latest/current version
+}
+
+message DownloadChunk {
+  bytes content = 1;
+}
+
+message ListFilesRequest {}
+
+message FileSummary {
+  string file_id = 1;
+  string filename = 2;
+  int32 latest_version = 3;
+  int64 size = 4;
+  string updated_at = 5;
+}
+
+message ListFilesResponse {
+  repeated FileSummary files = 1;
+}
+
+message ListVersionsRequest {
+  string file_id = 1;
+}
+
+message FileVersion {
+  int32 version = 1;
+  int64 size = 2;
+  string checksum = 3;
+  string created_at = 4;
+  int32 chunk_count = 5;
+}
+
+message ListVersionsResponse {
+  repeated FileVersion versions = 1;
+}
+
+message RollbackRequest {
+  string file_id = 1;
+  int32 version = 2;
+}
+
+message RollbackResponse {
+  bool success = 1;
+  int32 current_version = 2;
+}
+
+message DeleteFileRequest {
+  string file_id = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+}
