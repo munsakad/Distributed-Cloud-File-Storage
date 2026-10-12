@@ -1,0 +1,55 @@
+name: Deploy demo to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Type-check backend and gateway
+        run: |
+          for pkg in backend gateway; do
+            (cd "$pkg" && npm install --no-audit --no-fund && npx tsc --noEmit -p .)
+          done
+
+      # The gateway UI is shipped unchanged except for two path tweaks: API
+      # calls become relative so they stay inside the project page, where the
+      # service worker (gateway/demo/sw.js) answers them.
+      - name: Assemble static site
+        run: |
+          mkdir -p _site
+          cp -r gateway/public/. _site/
+          cp gateway/demo/sw.js gateway/demo/boot.js _site/
+          sed -i "s#const API = '/api/files';#const API = 'api/files';#; s#fetch('/healthz')#fetch('healthz')#" _site/app.js
+          sed -i 's#<script src="app.js"></script>#<script src="boot.js"></script>#' _site/index.html
+          grep -q "const API = 'api/files';" _site/app.js
+          grep -q "fetch('healthz')" _site/app.js
+          grep -q 'src="boot.js"' _site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
