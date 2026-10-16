@@ -1,93 +1,250 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mini-dropbox — object store</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body>
-  <div class="scanline" aria-hidden="true"></div>
-
-  <header class="topbar">
-    <div class="wordmark">
-      <span class="wordmark__bracket">[</span>mini-dropbox<span class="wordmark__cursor">_</span><span class="wordmark__bracket">]</span>
-    </div>
-    <div class="status" id="status">
-      <span class="status__dot" id="statusDot"></span>
-      <span id="statusText">connecting…</span>
-    </div>
-  </header>
-
-  <main class="layout">
-    <section class="panel intake" id="intake">
-      <div class="panel__eyebrow">01 — INTAKE</div>
-      <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload a file">
-        <div class="dropzone__glyph">▲</div>
-        <p class="dropzone__title">Drop a file, or click to choose one</p>
-        <p class="dropzone__sub">Every file is split into 1&nbsp;MiB chunks, encrypted with AES‑256‑GCM per chunk, and fanned out to <strong>replica&#8209;a</strong>, <strong>replica&#8209;b</strong><span id="s3Note"></span> before the write is acknowledged.</p>
-        <input type="file" id="fileInput" hidden />
-      </div>
-      <div class="progress" id="progressWrap" hidden>
-        <div class="progress__label">
-          <span id="progressName"></span>
-          <span id="progressPct">0%</span>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Vault ? Distributed File Storage</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="brand" href="./"
+          ><span class="brand-mark">V</span
+          ><span>Vault<small>Distributed storage</small></span></a
+        >
+        <div class="nav-label">WORKSPACE</div>
+        <a class="nav-item active" href="#files">? &nbsp; All files</a
+        ><a class="nav-item" href="#verification">? &nbsp; Integrity check</a
+        ><a class="nav-item" href="#architecture">? &nbsp; How it works</a>
+        <section class="node-panel">
+          <div class="nav-label">STORAGE REPLICAS</div>
+          <div id="nodesPanel">
+            <p class="muted">Loading storage status?</p>
+          </div>
+          <p id="storageMode" class="sidebar-note">Connecting to storage?</p>
+        </section>
+        <div class="sidebar-bottom">
+          <a
+            href="https://github.com/munsakad/Distributed-Cloud-File-Storage"
+            target="_blank"
+            rel="noopener"
+            >View source ?</a
+          >
+          <p>1 MiB chunks ? AES-256-GCM<br />Version history ? Read failover</p>
         </div>
-        <div class="progress__track"><div class="progress__fill" id="progressFill"></div></div>
-      </div>
-      <div class="toast" id="toast" hidden></div>
-    </section>
-
-    <section class="panel objects">
-      <div class="panel__eyebrow">02 — OBJECTS <span id="fileCount" class="panel__count"></span></div>
-      <div class="table" id="table">
-        <div class="table__empty" id="emptyState">No objects yet — upload something above.</div>
-      </div>
-    </section>
-  </main>
-
-  <template id="rowTemplate">
-    <article class="object" data-file-id="">
-      <div class="object__row">
-        <button class="object__toggle" aria-expanded="false">▸</button>
-        <div class="object__name"></div>
-        <div class="object__meta">
-          <span class="badge badge--version"></span>
-          <span class="object__size"></span>
-          <span class="object__updated"></span>
-        </div>
-        <div class="object__actions">
-          <button class="btn btn--ghost btn--new-version">new version</button>
-          <input type="file" class="object__version-input" hidden />
-          <button class="btn btn--ghost btn--download">download</button>
-          <button class="btn btn--danger btn--delete">delete</button>
-        </div>
-      </div>
-      <div class="object__id"></div>
-      <div class="object__detail" hidden>
-        <div class="detail__loading">loading versions…</div>
-      </div>
-    </article>
-  </template>
-
-  <template id="versionRowTemplate">
-    <div class="version">
-      <div class="version__head">
-        <span class="badge badge--version"></span>
-        <span class="version__checksum"></span>
-        <span class="version__size"></span>
-        <span class="version__date"></span>
-      </div>
-      <div class="version__ledger" title="one square = one encrypted chunk"></div>
-      <div class="version__actions">
-        <button class="btn btn--ghost btn--sm btn--download-version">download this version</button>
-        <button class="btn btn--accent btn--sm btn--rollback">make current</button>
+      </aside>
+      <div class="workspace">
+        <header class="topbar">
+          <span class="breadcrumb">Workspace <span>/</span> All files</span>
+          <div id="status" class="status">
+            <span id="statusDot" class="status__dot"></span
+            ><span id="statusText">Connecting?</span>
+          </div>
+        </header>
+        <main class="main">
+          <section class="intro">
+            <div>
+              <div class="eyebrow">YOUR FILES, WITH A SAFETY NET</div>
+              <h1>A home for every version.</h1>
+              <p>
+                Upload, inspect, and recover your files. See what happens to
+                every encrypted chunk.
+              </p>
+            </div>
+            <span class="mode-pill" id="modeLabel">Storage workspace</span>
+          </section>
+          <div class="stats">
+            <div>
+              <span>Stored files</span><strong id="statFiles">0</strong>
+            </div>
+            <div>
+              <span>Current file data</span><strong id="statBytes">0 B</strong>
+            </div>
+            <div>
+              <span>Saved versions</span><strong id="statVersions">0</strong>
+            </div>
+            <div>
+              <span>Encrypted chunks</span><strong id="statChunks">0</strong>
+            </div>
+          </div>
+          <section class="upload-panel">
+            <div
+              class="dropzone"
+              id="dropzone"
+              tabindex="0"
+              role="button"
+              aria-label="Choose files to upload"
+            >
+              <span class="upload-icon">?</span>
+              <div>
+                <h2>Drop files here to keep them safe</h2>
+                <p>
+                  or <span class="link">browse files</span> ? Multiple files
+                  supported
+                </p>
+                <small id="uploadLimit"
+                  >Files are stored only after all chunks are encrypted and
+                  accepted by a replica.</small
+                >
+              </div>
+              <input type="file" id="fileInput" multiple hidden />
+            </div>
+            <div id="progressWrap" class="progress" hidden>
+              <div class="progress__label">
+                <span id="progressName"></span><span id="progressPct">0%</span>
+              </div>
+              <div class="progress__track">
+                <div id="progressFill" class="progress__fill"></div>
+              </div>
+              <p id="progressStage"></p>
+              <p id="queueStatus"></p>
+            </div>
+            <div
+              id="toast"
+              class="toast"
+              role="status"
+              aria-live="polite"
+              hidden
+            ></div>
+          </section>
+          <section id="files" class="files-panel">
+            <div class="section-heading">
+              <div>
+                <h2>Your files <span id="fileCount"></span></h2>
+                <p>
+                  Download the original bytes or explore an earlier version.
+                </p>
+              </div>
+              <button class="btn btn--ghost" id="refreshFiles">
+                ? Refresh
+              </button>
+            </div>
+            <div class="file-toolbar">
+              <label
+                ><span class="sr-only">Search files</span
+                ><input
+                  type="search"
+                  id="fileSearch"
+                  placeholder="Search your files?" /></label
+              ><span class="muted" id="storageUsage"></span>
+            </div>
+            <div id="table" class="table">
+              <div id="emptyState" class="empty-state">
+                <span>?</span>
+                <h3>Your workspace is ready</h3>
+                <p>
+                  Upload your first file. Each file gets its own identity and
+                  version history.
+                </p>
+              </div>
+            </div>
+          </section>
+          <section class="verification-panel" id="verification">
+            <div>
+              <div class="eyebrow">SHOW, DON'T JUST TELL</div>
+              <h2>Put the storage pipeline to the test.</h2>
+              <p>
+                Create a 2.5 MiB sample, take replica A offline, and read it
+                from replica B. The downloaded bytes must match the original
+                SHA-256.
+              </p>
+              <button class="btn btn--accent" id="runVerification">
+                Run round-trip check
+              </button>
+            </div>
+            <div
+              id="verificationReport"
+              class="verification-report"
+              aria-live="polite"
+            >
+              The check uses a labeled sample file and leaves it in your
+              workspace for inspection.
+            </div>
+          </section>
+          <details class="architecture" id="architecture">
+            <summary>What this deployment actually runs</summary>
+            <p id="deploymentNote">
+              The local deployment uses an Express gateway and a gRPC storage
+              service. S3 is an optional third replica; Kubernetes and Terraform
+              configuration are available in the source.
+            </p>
+            <div class="pipeline">
+              <span>Upload bytes</span><b>?</b><span>1 MiB chunks</span><b>?</b
+              ><span>AES-256-GCM</span><b>?</b><span>Replica A + B</span><b>?</b
+              ><span>Version metadata</span>
+            </div>
+            <p>
+              Replication acknowledges an upload when at least one replica
+              accepts each chunk. It does not guarantee both copies if a node is
+              offline. Each chunk's random IV and authentication tag live in
+              metadata. SHA-256 verifies the reconstructed file.
+            </p>
+          </details>
+          <footer>
+            Built to make storage behavior inspectable.
+            <a
+              href="https://github.com/munsakad/Distributed-Cloud-File-Storage"
+              target="_blank"
+              rel="noopener"
+              >Explore the implementation ?</a
+            >
+          </footer>
+        </main>
       </div>
     </div>
-  </template>
-
-  <script src="app.js"></script>
-</body>
+    <template id="rowTemplate"
+      ><article class="object">
+        <div class="object__row">
+          <div class="file-icon">?</div>
+          <div class="file-info">
+            <h3 class="object__name"></h3>
+            <div class="object__meta">
+              <span class="object__size"></span><span>?</span
+              ><span class="object__updated"></span
+              ><span class="badge badge--version"></span>
+            </div>
+          </div>
+          <div class="object__actions">
+            <button class="btn btn--ghost object__toggle" aria-expanded="false">
+              History</button
+            ><button class="btn btn--ghost btn--new-version">New version</button
+            ><input type="file" class="object__version-input" hidden /><button
+              class="btn btn--accent btn--download"
+            >
+              Download</button
+            ><button
+              class="btn btn--danger btn--delete"
+              aria-label="Delete file"
+            >
+              ?
+            </button>
+          </div>
+        </div>
+        <div class="object__id"></div>
+        <div class="object__detail" hidden></div></article
+    ></template>
+    <template id="versionRowTemplate"
+      ><section class="version">
+        <div class="version__head">
+          <span class="badge badge--version"></span
+          ><span class="version__size"></span><span class="version__date"></span
+          ><span class="version__current"></span>
+        </div>
+        <p class="version__checksum"></p>
+        <div class="version__ledger" aria-label="Encrypted chunk ledger"></div>
+        <p class="ledger-caption"></p>
+        <details class="chunk-details">
+          <summary>Inspect encryption metadata</summary>
+          <div class="chunk-data"></div>
+        </details>
+        <div class="version__actions">
+          <button class="btn btn--ghost btn--download-version">
+            Download version</button
+          ><button class="btn btn--accent btn--rollback">Make current</button>
+        </div>
+      </section></template
+    >
+    <script src="app.js"></script>
+  </body>
 </html>

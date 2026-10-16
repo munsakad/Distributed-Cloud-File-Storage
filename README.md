@@ -1,5 +1,57 @@
 # mini-dropbox
 
+## Live demo and verified behavior
+
+The [GitHub Pages workspace](https://munsakad.github.io/Distributed-Cloud-File-Storage/)
+has a file dashboard, multi-file upload queue, searchable file list, expandable
+version history, encryption metadata ledger, replica controls, and a guided
+2.5 MiB / three-chunk integrity and failover check.
+
+The browser demo performs real AES-256-GCM encryption and SHA-256 verification
+with WebCrypto, and stores ciphertext, version metadata, and a non-extractable
+key in the existing `mini-dropbox-demo` IndexedDB database. This is persistent
+browser storage on one device, not an AWS cloud account. The two IndexedDB
+stores simulate replicas; they are not independent machines or failure domains.
+Clearing site data or browser eviction can remove files and their key. Express,
+gRPC, S3, Kubernetes, and Terraform belong to the separately runnable backend
+and infrastructure configuration; they do not run on GitHub Pages.
+
+Downloads preserve the original name/extension, reject HTTP errors, and compare
+the actual downloaded size and SHA-256 to the selected saved version before
+offering a file. Missing or corrupt chunks retry other replicas with AES-GCM
+authentication. Failed downloads do not save JSON, HTML, or error text as files.
+Existing files and the saved encryption key are retained during deployment.
+Previously corrupted/missing data cannot be reconstructed if no valid replica
+remains; the UI reports a failure instead of claiming a successful download.
+
+Uploads, rollback, and deletion are serialized over version allocation and
+metadata publication, so concurrent new versions cannot overwrite history.
+The file list ignores stale refresh responses. Multiple files are queued; a
+failed upload does not stop later files. The progress bar represents XHR upload
+transfer, followed by an explicit encrypting/committing phase. The browser demo
+buffers a file in memory (100 MiB limit); the Express gateway also buffers its
+multipart upload before sending it in 256 KiB gRPC messages. The backend storage
+service processes those messages in fixed 1 MiB chunks.
+
+### Regression tests
+
+```sh
+npm ci
+npm test
+cd backend
+npm ci
+npm run build
+cd ..
+node --test tests/backend-check.cjs
+```
+
+Seven IndexedDB/DOM tests cover concurrent distinct uploads, worker restart,
+byte-for-byte PDF/binary downloads, concurrent versions and rollback, corrupt
+and offline replica failover, metadata-write failure cleanup, original filenames,
+blocked error downloads, stale lists, and safe metadata rendering. An additional
+test runs the actual compiled Node storage pipeline against temporary disk
+replicas. CI runs these tests and type-checks backend/gateway before publishing.
+
 A small distributed file-storage system: upload a file, it gets **chunked**,
 **encrypted**, **replicated** across multiple targets (including AWS S3),
 and every re-upload of the same file is kept as a new **version** you can

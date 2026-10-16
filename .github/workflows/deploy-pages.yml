@@ -20,24 +20,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Test storage persistence, integrity and UI downloads
+        run: npm ci --no-audit --no-fund && npm test
+
       - name: Type-check backend and gateway
         run: |
           for pkg in backend gateway; do
             (cd "$pkg" && npm install --no-audit --no-fund && npx tsc --noEmit -p .)
           done
 
-      # The gateway UI is shipped unchanged except for two path tweaks: API
-      # calls become relative so they stay inside the project page, where the
-      # service worker (gateway/demo/sw.js) answers them.
+      - name: Verify the actual Node storage pipeline
+        run: |
+          (cd backend && npm run build)
+          node --test tests/backend-check.cjs
+
+      # Relative API paths keep requests inside the project page scope.
       - name: Assemble static site
         run: |
           mkdir -p _site
           cp -r gateway/public/. _site/
           cp gateway/demo/sw.js gateway/demo/boot.js _site/
-          sed -i "s#const API = '/api/files';#const API = 'api/files';#; s#fetch('/healthz')#fetch('healthz')#" _site/app.js
           sed -i 's#<script src="app.js"></script>#<script src="boot.js"></script>#' _site/index.html
-          grep -q "const API = 'api/files';" _site/app.js
-          grep -q "fetch('healthz')" _site/app.js
+          grep -q 'const API = "api/files";' _site/app.js
+          grep -q 'jsonRequest("healthz")' _site/app.js
           grep -q 'src="boot.js"' _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
